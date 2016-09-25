@@ -224,6 +224,34 @@ class SublimelinterShowAllErrors(sublime_plugin.TextCommand):
         self.highlights = highlights
         self.points = []
         options = []
+        stylesheet = '''
+            <style>
+                div.error {
+                    padding: 0.7rem;
+                    margin: 0.2rem 0;
+                    border-radius: 2px;
+                }
+                div.error span.message {
+                    padding: 0.7rem;
+                    margin: 0.2rem 0;
+                }
+                div.error a.close_msg {
+                    text-decoration: inherit;
+                    padding: 0.35rem 0.7rem 0.45rem 0.8rem;
+                    # position: relative;
+                    bottom: 0.05rem;
+                    border-radius: 0 2px 2px 0;
+                    font-weight: bold;
+                }
+                html.dark div.error a {
+                    background-color: #00000018;
+                }
+                html.light div.error a {
+                    background-color: #ffffff18;
+                }
+            </style>
+        '''
+        self.view.erase_phantoms("sublimelinter")
 
         for lineno, line_errors in sorted(errors.items()):
             if persist.settings.get("passive_warnings", False):
@@ -257,16 +285,23 @@ class SublimelinterShowAllErrors(sublime_plugin.TextCommand):
 
                 # Insert an arrow at the column in the stripped line
                 code = visible_line[:column] + '➜' + visible_line[column:]
-                options.append(['{}  {}'.format(lineno + 1, message), code])
+                point_v = view.text_point(lineno, column)
+
+                options.append([point, message])
 
         self.viewport_pos = view.viewport_position()
         self.selection = list(view.sel())
+        for point_v, msg in options:
+            view.add_phantom("sublimelinter", sublime.Region(point_v, point_v), ('<body id=inline-error>' + stylesheet + '<div class="error"><span class="message"> '+ msg +' </span>'+ '<a href=hide class="close_msg">' + chr(0x00D7) + '</a> </div>' + '</body>'), sublime.LAYOUT_BLOCK, on_navigate=self.on_phantom_navigate)
 
-        view.window().show_quick_panel(
-            options,
-            on_select=self.select_error,
-            on_highlight=self.select_error
-        )
+        # view.window().show_quick_panel(
+        #     options,
+        #     on_select=self.select_error,
+        #     on_highlight=self.select_error
+        # )
+
+    def on_phantom_navigate(self, url):
+        self.view.erase_phantoms("sublimelinter")
 
     def select_error(self, index):
         """Completion handler for the quick panel. Selects the indexed error."""
