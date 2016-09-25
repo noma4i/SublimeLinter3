@@ -8,6 +8,13 @@ SublimeLinter
 
 #### LINTERS ARE *NOT* INCLUDED WITH SUBLIMELINTER 3. ####
 
+## WIP version with Inline Errors 
+
+![Inline is Cool](showcase.png?raw=true)
+
+`Show all errors` method was replaced. Instead of showing a list in quick view it will place errors inline. Plays nice with `Show all errors on save` by clearing outdated errors and showing only relevant.
+
+
 **Please read the [installation documentation](http://sublimelinter.readthedocs.org/en/latest/installation.html)!**
 
 ## About SublimeLinter
