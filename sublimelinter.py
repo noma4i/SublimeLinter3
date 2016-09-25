@@ -418,7 +418,7 @@ class SublimeLinter(sublime_plugin.EventListener):
 
     def on_post_save(self, view):
         """Called after view is saved."""
-
+        view.erase_phantoms("sublimelinter")
         if self.is_scratch(view):
             return
 
