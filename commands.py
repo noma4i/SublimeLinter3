@@ -220,10 +220,9 @@ class SublimelinterShowAllErrors(sublime_plugin.TextCommand):
     @error_command
     def run(self, view, errors, highlights):
         """Run the command."""
-        self.errors = errors
-        self.highlights = highlights
-        self.points = []
         options = []
+        view.erase_phantoms("sublimelinter")
+
         stylesheet = '''
             <style>
                 div.error {
@@ -251,68 +250,27 @@ class SublimelinterShowAllErrors(sublime_plugin.TextCommand):
                 }
             </style>
         '''
-        self.view.erase_phantoms("sublimelinter")
 
-        for lineno, line_errors in sorted(errors.items()):
-            if persist.settings.get("passive_warnings", False):
-                if self.highlights.line_type(lineno) != highlight.ERROR:
-                    continue
-
-            line = view.substr(view.full_line(view.text_point(lineno, 0))).rstrip('\n\r')
-
-            # Strip whitespace from the front of the line, but keep track of how much was
-            # stripped so we can adjust the column.
-            diff = len(line)
-            line = line.lstrip()
-            diff -= len(line)
-
-            max_prefix_len = 40
-
-            for column, message in sorted(line_errors):
-                # Keep track of the line and column
+        for lineno, line_errors in errors.items():
+            for column, message in line_errors:
                 point = view.text_point(lineno, column)
-                self.points.append(point)
-
-                # If there are more than max_prefix_len characters before the adjusted column,
-                # lop off the excess and insert an ellipsis.
-                column = max(column - diff, 0)
-
-                if column > max_prefix_len:
-                    visible_line = '...' + line[column - max_prefix_len:]
-                    column = max_prefix_len + 3  # 3 for ...
-                else:
-                    visible_line = line
-
-                # Insert an arrow at the column in the stripped line
-                code = visible_line[:column] + '➜' + visible_line[column:]
-                point_v = view.text_point(lineno, column)
-
                 options.append([point, message])
 
-        self.viewport_pos = view.viewport_position()
-        self.selection = list(view.sel())
-        for point_v, msg in options:
-            view.add_phantom("sublimelinter", sublime.Region(point_v, point_v), ('<body id=inline-error>' + stylesheet + '<div class="error"><span class="message"> '+ msg +' </span>'+ '<a href=hide class="close_msg">' + chr(0x00D7) + '</a> </div>' + '</body>'), sublime.LAYOUT_BLOCK, on_navigate=self.on_phantom_navigate)
+        for pt, msg in options:
+            phantom_content = """
+               <body id="inline-error">
+                  {stylesheet}
+                  <div class="error">
+                      <span class="message">{msg}</span>
+                      <a href="hide">{cancel_char}</a>
+                  </div>
+              </body>
+            """.format(cancel_char=chr(0x00D7), **locals())
 
-        # view.window().show_quick_panel(
-        #     options,
-        #     on_select=self.select_error,
-        #     on_highlight=self.select_error
-        # )
+            view.add_phantom("sublimelinter", sublime.Region(pt, view.line(pt).b), phantom_content, sublime.LAYOUT_BLOCK, on_navigate=self.on_phantom_navigate)
 
     def on_phantom_navigate(self, url):
         self.view.erase_phantoms("sublimelinter")
-
-    def select_error(self, index):
-        """Completion handler for the quick panel. Selects the indexed error."""
-        if index != -1:
-            point = self.points[index]
-            GotoErrorCommand.select_lint_region(self.view, sublime.Region(point, point))
-        else:
-            self.view.set_viewport_position(self.viewport_pos)
-            self.view.sel().clear()
-            self.view.sel().add_all(self.selection)
-
 
 class SublimelinterToggleSettingCommand(sublime_plugin.WindowCommand):
     """Command that toggles a setting."""
